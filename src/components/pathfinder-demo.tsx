@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PathGeometry, PathPointList } from 'three.path';
-import { TWEEN } from 'three/examples/jsm/libs/tween.module.min.js';
+import * as TWEEN from '@tweenjs/tween.js';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Square, RefreshCcw } from 'lucide-react';
