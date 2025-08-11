@@ -32,6 +32,8 @@ export function PathfinderDemo() {
   // State refs
   const stepRef = useRef(0);
   const animationFrameIdRef = useRef<number>();
+  const isInteractingRef = useRef(false);
+  const interactionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // React state
   const [isWalking, setIsWalking] = useState(false);
@@ -62,6 +64,9 @@ export function PathfinderDemo() {
   }, []);
 
   const flyTo = useCallback((position: THREE.Vector3, duration = 500, callback?: () => void, onUpdate?: (obj: any) => void) => {
+    if (cameraTweenRef.current) {
+      cameraTweenRef.current.stop();
+    }
     const curCameraPosition = cameraRef.current!.position.clone();
     cameraTweenRef.current = new TWEEN.Tween(curCameraPosition)
       .to(position, duration)
@@ -73,6 +78,7 @@ export function PathfinderDemo() {
     });
 
     cameraTweenRef.current.onComplete(() => {
+      cameraTweenRef.current = null;
       callback?.();
     });
 
@@ -133,6 +139,7 @@ export function PathfinderDemo() {
     const startPoint = pathCurveRef.current.getPointAt(0);
     npcRef.current.position.copy(startPoint);
     roleRingRef.current.position.copy(startPoint);
+    stepRef.current = 0;
 
     updateCameraBehindNPC(true, () => {
         fadeAction(standActionRef.current, walkActionRef.current);
@@ -186,6 +193,22 @@ export function PathfinderDemo() {
 
     controlsRef.current = new OrbitControls(cameraRef.current, rendererRef.current.domElement);
     
+    const onControlsStart = () => {
+        isInteractingRef.current = true;
+        if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
+        if (cameraTweenRef.current) cameraTweenRef.current.stop();
+    };
+
+    const onControlsEnd = () => {
+        if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
+        interactionTimeoutRef.current = setTimeout(() => {
+            isInteractingRef.current = false;
+        }, 3000);
+    };
+
+    controlsRef.current.addEventListener('start', onControlsStart);
+    controlsRef.current.addEventListener('end', onControlsEnd);
+    
     sceneRef.current.add(new THREE.AmbientLight(0xffffff, 0.7));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
     dirLight.position.set(50, 50, 50);
@@ -203,10 +226,10 @@ export function PathfinderDemo() {
     sceneRef.current.add(pathToShowRef.current);
 
     // Create a placeholder cube
-    const cubeGeometry = new THREE.BoxGeometry(2, 2, 2);
+    const cubeGeometry = new THREE.BoxGeometry(2, 4, 2);
     const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
     npcRef.current = new THREE.Mesh(cubeGeometry, cubeMaterial);
-    npcRef.current.scale.set(1.5, 1.5, 1.5);
+    npcRef.current.position.y = 2;
     sceneRef.current!.add(npcRef.current);
     
     const ringGeometry = new THREE.RingGeometry(4, 5, 32);
@@ -228,26 +251,6 @@ export function PathfinderDemo() {
 
     setIsLoaded(true);
 
-    const animate = () => {
-        animationFrameIdRef.current = requestAnimationFrame(animate);
-        const delta = clockRef.current.getDelta();
-        
-        TWEEN.update();
-        controlsRef.current?.update();
-        
-        if (isWalking && !isWalkingPaused) {
-            updateNPCPosition();
-            updateCameraBehindNPC();
-            if (roleRingRef.current) roleRingRef.current.position.copy(npcRef.current!.position);
-        }
-
-        if (roleRingRef.current) roleRingRef.current.rotation.z += 0.01;
-        npcMixerRef.current?.update(delta);
-        
-        rendererRef.current?.render(sceneRef.current!, cameraRef.current!);
-    };
-    animate();
-
     const handleResize = () => {
       if (currentMount && cameraRef.current && rendererRef.current) {
         cameraRef.current.aspect = currentMount.clientWidth / currentMount.clientHeight;
@@ -263,9 +266,44 @@ export function PathfinderDemo() {
         currentMount.removeChild(rendererRef.current.domElement);
       }
       if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
+      if (controlsRef.current) {
+        controlsRef.current.removeEventListener('start', onControlsStart);
+        controlsRef.current.removeEventListener('end', onControlsEnd);
+        controlsRef.current.dispose();
+      }
+      if (interactionTimeoutRef.current) clearTimeout(interactionTimeoutRef.current);
       rendererRef.current?.dispose();
     };
-  }, [isLoaded, isWalking, isWalkingPaused, initPathPoints, updateNPCPosition, updateCameraBehindNPC]);
+  }, []);
+
+  useEffect(() => {
+    const animate = () => {
+        animationFrameIdRef.current = requestAnimationFrame(animate);
+        const delta = clockRef.current.getDelta();
+        
+        TWEEN.update();
+        controlsRef.current?.update();
+        
+        if (isWalking && !isWalkingPaused) {
+            updateNPCPosition();
+            if (!isInteractingRef.current) {
+                updateCameraBehindNPC();
+            }
+            if (roleRingRef.current) roleRingRef.current.position.copy(npcRef.current!.position);
+        }
+
+        if (roleRingRef.current) roleRingRef.current.rotation.z += 0.01;
+        npcMixerRef.current?.update(delta);
+        
+        rendererRef.current?.render(sceneRef.current!, cameraRef.current!);
+    };
+    animate();
+    return () => {
+      if (animationFrameIdRef.current) {
+          cancelAnimationFrame(animationFrameIdRef.current);
+      }
+    }
+  }, [isWalking, isWalkingPaused, updateNPCPosition, updateCameraBehindNPC]);
 
   return (
     <Card className="overflow-hidden shadow-xl w-full">
