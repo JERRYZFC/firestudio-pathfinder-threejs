@@ -8,6 +8,8 @@ import * as TWEEN from '@tweenjs/tween.js';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Square, RefreshCcw } from 'lucide-react';
+import { Slider } from "@/components/ui/slider"
+import { Label } from "@/components/ui/label"
 
 export function PathfinderDemo() {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -35,6 +37,7 @@ export function PathfinderDemo() {
   const [isWalking, setIsWalking] = useState(false);
   const [isWalkingPaused, setIsWalkingPaused] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [speed, setSpeed] = useState(1);
 
   const initPathPoints = useCallback(() => {
     const pointArr = [
@@ -99,13 +102,13 @@ export function PathfinderDemo() {
     const segment = 30000;
     const stepPoints = pathCurveRef.current.getSpacedPoints(segment);
 
-    stepRef.current += 1;
+    stepRef.current += speed;
     if (stepRef.current >= segment) {
         stepRef.current = 0;
     }
     
-    const npcIndex = stepRef.current % segment;
-    const eyeIndex = (stepRef.current + 50) % segment;
+    const npcIndex = Math.floor(stepRef.current) % segment;
+    const eyeIndex = (Math.floor(stepRef.current) + 50) % segment;
 
     if (stepPoints[npcIndex] && stepPoints[eyeIndex]) {
         const npcPoint = stepPoints[npcIndex];
@@ -113,7 +116,7 @@ export function PathfinderDemo() {
         npcRef.current.position.copy(npcPoint);
         npcRef.current.lookAt(eyePoint);
     }
-  }, []);
+  }, [speed]);
 
   const fadeAction = useCallback((curAction?: THREE.AnimationAction, newAction?: THREE.AnimationAction) => {
     curAction?.fadeOut(0.3);
@@ -272,6 +275,20 @@ export function PathfinderDemo() {
       </CardHeader>
       <CardContent className="p-0 relative bg-white">
         <div ref={mountRef} style={{ width: '100%', height: 'calc(100vh - 250px)', cursor: 'grab' }} />
+        <div className="absolute top-4 right-4 bg-white/80 p-4 rounded-lg shadow-md flex flex-col gap-4 w-64">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="speed-slider">Speed: {speed.toFixed(1)}x</Label>
+            <Slider
+              id="speed-slider"
+              min={0.1}
+              max={5}
+              step={0.1}
+              value={[speed]}
+              onValueChange={(value) => setSpeed(value[0])}
+              disabled={!isWalking}
+            />
+          </div>
+        </div>
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
             <Button onClick={startWalking} size="lg" disabled={isWalking || !isLoaded} className="bg-green-600 text-white hover:bg-green-700">
                 <Play className="mr-2" /> Start
