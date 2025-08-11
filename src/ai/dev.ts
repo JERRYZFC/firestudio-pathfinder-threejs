@@ -1,4 +1,1 @@
-import { config } from 'dotenv';
-config();
-
-import '@/ai/flows/tech-analyzer.ts';
+// This file is intentionally blank.
