@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { PathGeometry, PathPointList } from 'three.path';
 import * as TWEEN from '@tweenjs/tween.js';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -200,37 +199,31 @@ export function PathfinderDemo() {
     pathToShowRef.current = new THREE.Mesh(geometry, material);
     sceneRef.current.add(pathToShowRef.current);
 
-    // Load Model
-    const loader = new GLTFLoader();
-    loader.load('/npc.glb', (gltf) => {
-        npcRef.current = gltf.scene;
-        npcRef.current.scale.set(1.5, 1.5, 1.5);
-        
-        npcMixerRef.current = new THREE.AnimationMixer(npcRef.current);
-        standActionRef.current = npcMixerRef.current.clipAction(gltf.animations[1]);
-        walkActionRef.current = npcMixerRef.current.clipAction(gltf.animations[2]);
-        standActionRef.current.play();
+    // Create a placeholder cube
+    const cubeGeometry = new THREE.BoxGeometry(2, 2, 2);
+    const cubeMaterial = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    npcRef.current = new THREE.Mesh(cubeGeometry, cubeMaterial);
+    npcRef.current.scale.set(1.5, 1.5, 1.5);
+    sceneRef.current!.add(npcRef.current);
+    
+    const ringGeometry = new THREE.RingGeometry(4, 5, 32);
+    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
+    roleRingRef.current = new THREE.Mesh(ringGeometry, ringMaterial);
+    roleRingRef.current.rotateX(-0.5 * Math.PI);
+    sceneRef.current!.add(roleRingRef.current);
 
-        sceneRef.current!.add(npcRef.current);
-        
-        const ringTex = new THREE.TextureLoader().load('/role-ring.png');
-        const plane = new THREE.PlaneGeometry(10, 10);
-        const ringMaterial = new THREE.MeshPhongMaterial({
-            map: ringTex,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-        roleRingRef.current = new THREE.Mesh(plane, ringMaterial);
-        roleRingRef.current.rotateX(-0.5 * Math.PI);
-        sceneRef.current!.add(roleRingRef.current);
+    const startPoint = pathCurveRef.current!.getPointAt(0);
+    npcRef.current.position.copy(startPoint);
+    roleRingRef.current.position.copy(startPoint);
+    
+    // Since we don't have animations, we can simplify this
+    const emptyClip = new THREE.AnimationClip("empty", -1, []);
+    npcMixerRef.current = new THREE.AnimationMixer(npcRef.current);
+    standActionRef.current = npcMixerRef.current.clipAction(emptyClip);
+    walkActionRef.current = npcMixerRef.current.clipAction(emptyClip);
+    standActionRef.current.play();
 
-        const startPoint = pathCurveRef.current!.getPointAt(0);
-        npcRef.current.position.copy(startPoint);
-        roleRingRef.current.position.copy(startPoint);
-        
-        setIsLoaded(true);
-    });
+    setIsLoaded(true);
 
     const animate = () => {
         animationFrameIdRef.current = requestAnimationFrame(animate);
